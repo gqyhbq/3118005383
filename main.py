@@ -1,69 +1,145 @@
-from gensim import corpora,models,similarities
+# -*- coding: utf-8 -*-
+
+
+# 正则包
+
+import re
+
+# html 包
+
+import html
+
+# 自然语言处理包
+
 import jieba
-from collections import defaultdict
-#  读取文档
-doc1 = "D:\sim_0.8\orig_0.8_del.txt"
-doc2 = "D:\sim_0.8\orig_0.8_add.txt"
-d1 = open(doc1,encoding="utf-8").read()
-d2 = open(doc2,encoding="utf-8").read()
-#  对要计算的多篇文档进行分词
-data1 = jieba.cut(d1)
-data2 = jieba.cut(d2)
-#  对文档进行整理成指定格式，方便后续计算
-   #用累加的方式遍历
-data11 = ""
-for item in data1:
-    data11+=item+" "
 
-data22 = ""
-for item in data2:
-    data22+=item+" "
+import jieba.analyse
 
-documents = [data11,data22]
-# print(documents)
+# 机器学习包
 
-#  计算出词语的频率
-texts = [[word for word in document.split()]
-        for document in documents]
-# print(texts)
+from sklearn.metrics.pairwise import cosine_similarity
 
-frequency = defaultdict(int)
-for text in texts:
-    for token in text:
-        frequency[token]+=1
-
-#  对可选、低频词进行过滤
-texts = [[word for word in text if frequency[token]>3]
- for text in texts]              #从右往左读
-print(texts)
+import sys
 
 
-#  通过语料库建立词典
-dictionary = corpora.Dictionary(texts)
-dictionary.save("D:/results/wenben33.txt")
+class CosineSimilarity(object):
+    """
+    余弦相似度
+    """
 
-#  加载要对比的文档
-doc3 = "D:\sim_0.8\orig.txt"
-d3 = open(doc3,encoding="utf-8").read()
+    def __init__(self, content_x1, content_y2):
 
-#  将要对比的文档通过doc2bow转化为稀疏向量
-data3 = jieba.cut(d3)
-data33 = ""
-for item in data3:
-    data33+=item+" "
-new_doc = data33
-print(new_doc)
+        self.s1 = content_x1
 
-new_vec = dictionary.doc2bow(new_doc.split())   #得到稀疏向量
-corpus = [dictionary.doc2bow(text) for text in texts]
+        self.s2 = content_y2
 
-#  通过TF-idf模型对新语料库处理，得到tfidf
-tfidf = models.TfidfModel(corpus)
+    @staticmethod
+    def extract_keyword(content):  #提取关键词
 
-#  通过token2id得到特征数
-featureNum = len(dictionary.token2id.keys())
+        #正则过滤 html 标签
 
-#  计算稀疏矩阵相似度，从而建立索引
-index = similarities.SparseMatrixSimilarity(tfidf[corpus],num_features=featureNum)
-sim = index[tfidf[new_vec]]
-print(sim)
+        re_exp = re.compile(r'(<style>.*?</style>)|(<[^>]+>)', re.S)
+
+        content = re_exp.sub(' ', content)
+
+        #html 转义符实体化
+
+        content = html.unescape(content)
+
+        #切割
+
+        seg = [i for i in jieba.cut(content, cut_all=True) if i != '']
+
+        #提取关键词
+
+        keywords = jieba.analyse.extract_tags("|".join(seg), topK=200, withWeight=False)
+
+        return keywords
+
+    @staticmethod
+    def one_hot(word_dict, keywords):  #oneHot编码
+
+        # cut_code = [word_dict[word] for word in keywords]
+
+        cut_code = [0] * len(word_dict)
+
+        for word in keywords:
+            cut_code[word_dict[word]] += 1
+
+        return cut_code
+
+    def main(self):
+
+        #提取关键词
+
+        keywords1 = self.extract_keyword(self.s1)
+
+        keywords2 = self.extract_keyword(self.s2)
+
+        #词的并集
+
+        union = set(keywords1).union(set(keywords2))
+
+        #编码
+
+        word_dict = {}
+
+        i = 0
+
+        for word in union:
+            word_dict[word] = i
+
+            i += 1
+
+        #oneHot编码
+
+        s1_cut_code = self.one_hot(word_dict, keywords1)
+
+        s2_cut_code = self.one_hot(word_dict, keywords2)
+
+        #余弦相似度计算
+
+        sample = [s1_cut_code, s2_cut_code]
+
+        #除零处理
+
+        try:
+
+            sim = cosine_similarity(sample)
+
+            return sim[1][0]
+
+        except Exception as e:
+
+            print(e)
+
+            return 0.0
+
+
+#测试
+
+if __name__ == '__main__':
+#f1 = sys.argv[1]
+    f = open('D:\sim_0.8\orig_0.8_add.txt', "r", encoding="UTF-8")
+
+    content_x = f.read()
+
+    f.close()
+
+#g1 = sys.argv[2]
+    g = open('D:\sim_0.8\orig_0.8_del.txt', "r", encoding="UTF-8")
+    content_y = g.read()
+
+    g.close()
+
+    similarity = CosineSimilarity(content_x, content_y)
+
+    similarity = similarity.main()
+
+    print('相似度: %.2f%%' % (similarity * 100))
+
+    x = open("D:/results/ans.txt", "w", encoding="UTF-8")
+
+    x.write(str(similarity))
+
+    x.close()

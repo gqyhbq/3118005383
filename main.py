@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 # 正则包
 
 import re
@@ -77,6 +78,7 @@ class CosineSimilarity(object):
         #词的并集
 
         union = set(keywords1).union(set(keywords2))
+        # print(union)
 
         #编码
 
@@ -117,29 +119,35 @@ class CosineSimilarity(object):
 #测试
 
 if __name__ == '__main__':
-#f1 = sys.argv[1]
-    f = open('D:\sim_0.8\orig_0.8_add.txt', "r", encoding="UTF-8")
-    #    if f1.endwith('.txt')==False:
-    #    print("输入错误！")
+#   print("请输入要比较的文件的位置：")
+    f1 = sys.argv[1]
+    f = open(f1, "r", encoding="UTF-8")
+    if f1.endswith('.txt')==False:
+        print("输入错误！")
     content_x = f.read()
 
     f.close()
 
-#g1 = sys.argv[2]
-    g = open('D:\sim_0.8\orig_0.8_del.txt', "r", encoding="UTF-8")
+    g1 = sys.argv[2]
+    g = open(g1, "r", encoding="UTF-8")
     content_y = g.read()
-    #    if g1.endwith('.txt')==False:
-    #    print("输入错误！")
+    if g1.endswith('.txt')==False:
+        print("输入错误！")
 
     g.close()
+    
+  # print("请输入输出结果的存放位置：")
+    x1 = sys.argv[3]
 
     similarity = CosineSimilarity(content_x, content_y)
 
     similarity = similarity.main()
 
     print('相似度: %.2f%%' % (similarity * 100))
+    
+  # print(f1,g1,x1)
 
-    x = open("D:/results/ans.txt", "w", encoding="UTF-8")
+    x = open(x1, "w", encoding="UTF-8")
 
     x.write(str(similarity))
 
